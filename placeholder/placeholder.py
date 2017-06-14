@@ -12,15 +12,38 @@ SECRET_KEY = os.environ.get('SECRET_KEY', '5yrc$dbu1b*gqf-9-%^i%khhqn1c4txvc^h6)
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')
 
+# 创建相对路径，防止硬编码
+BASE_DIR = os.path.dirname(__file__)
+
 settings.configure(
     DEBUG=DEBUG,
     SECRET_KEY=SECRET_KEY,
     ALLOWED_HOSTS=ALLOWED_HOSTS,
     ROOT_URLCONF=__name__,
-    MIDDLEWARE_CLASS=(
-
+    MIDDLEWARE_CLASSES=(
+        'django.middleware.common.CommonMiddleware',
+        'django.middleware.csrf.CsrfViewMiddleware',
+        'django.middleware.clickjacking.XFrameOptionsMiddleware'
     ),
+    # 用于处理静态文件的应用
+    INSTALLED_APPS=(
+        'django.contrib.staticfiles',
+    ),
+    # 模板设置
+    TEMPLATES=(
+        {
+            'BACKEND': 'django.template.backends.django.DjangoTemplates',
+            'DIRS': (os.path.join(BASE_DIR, 'templates'),)
+        },
+    ),
+    # 静态文件夹
+    STATICFILES_DIRS=(
+        os.path.join(BASE_DIR, 'static'),
+    ),
+    # 静态文件路由
+    STATIC_URL='/static/',
 )
+
 from io import BytesIO
 
 from PIL import Image, ImageDraw
@@ -30,6 +53,8 @@ from django.views.decorators.http import etag
 from django.conf.urls import url
 from django.core.wsgi import get_wsgi_application
 from django.core.cache import cache
+from django.core.urlresolvers import reverse
+from django.shortcuts import render
 
 
 class ImageForm(forms.Form):
@@ -73,9 +98,10 @@ def generate_etag(request, width, height):
     return hashlib.sha1(content.encode('utf-8')).hexdigest()
 
 
+# 设置 http 缓存
 @etag(generate_etag)
 def placeholder(request, width, height):
-    # TODO: Rest of the view will go here
+    """ get image by width and height """
     form = ImageForm({'height': height, 'width': width})
     if form.is_valid():
         image = form.generate()
@@ -85,7 +111,12 @@ def placeholder(request, width, height):
 
 
 def index(request):
-    return HttpResponse('Hello World')
+    """ index """
+    example = reverse('placeholder', kwargs={'width': 50, 'height': 50})
+    context = {
+        'example': request.build_absolute_uri(example)
+    }
+    return render(request, 'home.html', context)
 
 
 urlpatterns = (

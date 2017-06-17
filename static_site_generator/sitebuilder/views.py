@@ -1,9 +1,11 @@
 # -*- coding:utf-8 -*-
+import json
 import os
 
 from django.conf import settings
 from django.http import Http404
-from django.template import Template
+from django.template import Template, Context
+from django.template.loader_tags import BlockNode
 from django.shortcuts import render
 from django.utils._os import safe_join
 
@@ -20,6 +22,13 @@ def get_page_or_404(name):
 
     with open(file_path, 'rb') as f:
         this_page = Template(f.read())
+
+    meta = None
+    for i, node in enumerate(list(this_page.nodelist)):
+        if isinstance(node, BlockNode) and node.name == 'context':
+            meta = this_page.nodelist.pop(i)
+            break
+    this_page._meta = meta
     return this_page
 
 
@@ -31,4 +40,10 @@ def page(request, slug='index'):
         'slug': slug,
         'page': this_page,
     }
+
+    if this_page._meta is not None:
+        meta = this_page._meta.render(Context())
+        print(meta)
+        extra_context = json.loads(meta)
+        context.update(extra_context)
     return render(request, 'page.html', context)
